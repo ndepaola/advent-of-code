@@ -14,7 +14,7 @@ def get_value_for_character(character: str) -> int:
 
 def heuristic(source: Point, target: Point) -> int:
     # a simple admissible heuristic for the cost of moving from `source` to `target` - Manhattan distance :)
-    return abs(source[0] - target[0]) + abs(source[1] + target[1])
+    return abs(source[0] - target[0]) + abs(source[1] - target[1])
 
 
 def possible_moves(source: Point, heightmap: HeightMap, height_delta: int = 1) -> list[Point]:
