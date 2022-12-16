@@ -1,6 +1,6 @@
 import re
 import time
-from typing import TypeAlias
+from typing import Iterable, TypeAlias
 
 Point: TypeAlias = tuple[int, int]  # x, y, distance to closest beacon
 SensorMap: TypeAlias = dict[Point, int]  # (x, y) => distance to closest beacon
@@ -44,88 +44,55 @@ def count_possible_distress_signal_positions_at_y_level(file_name: str = "input.
     return len((all_points_where_beacons_could_go - beacons) - set(sensor_map.keys()))
 
 
-def get_beacon_edges(point: Point, distance: int) -> list[Point]:
+def get_point_neighbours_within_map(p: Point, min_x: int, max_x: int, min_y: int, max_y: int) -> Iterable[Point]:
+    def is_point_within_map(point_: Point) -> bool:
+        return min_x <= point_[0] <= max_x and min_y <= point_[1] <= max_y
+
+    for point in (p, (p[0] - 1, p[1]), (p[0] + 1, p[1]), (p[0], p[1] - 1), (p[0], p[1] + 1), *get_beacon_edges(p, 2)):
+        if is_point_within_map(point):
+            yield point
+
+
+def get_beacon_edges(p: Point, d: int) -> list[Point]:
     return list(
         zip(
-            list(range(point[0] - distance, point[0] + distance))
-            + list(range(point[0] + distance, point[0] - distance, -1)),
-            list(range(point[0], point[0] + distance))
-            + list(range(point[0] + distance, point[0] - distance, -1))
-            + list(range(point[0] - distance, point[0])),
+            list(range(p[0] - d, p[0] + d)) + list(range(p[0] + d, p[0] - d, -1)),
+            list(range(p[0], p[0] + d)) + list(range(p[0] + d, p[0] - d, -1)) + list(range(p[0] - d, p[0])),
         )
     )
 
 
+def point_is_within_range_of_a_beacon(p: Point, s: SensorMap) -> bool:
+    for point, distance in s.items():
+        if manhattan_distance(p, point) <= distance:
+            return True
+    return False
+
+
+def find_distress_signal(file_name: str, min_x: int, max_x: int, min_y: int, max_y: int) -> Point | None:
+    sensor_map, beacons, dimensions = read_input_file(file_name=file_name)
+    for i, point in enumerate(sensor_map.keys()):
+        t0 = time.time()
+        edge_points = get_beacon_edges(point, sensor_map[point])
+        for edge_point in edge_points:
+            for edge_point_neighbour in get_point_neighbours_within_map(
+                edge_point, min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y
+            ):
+                if not point_is_within_range_of_a_beacon(edge_point_neighbour, sensor_map):
+                    return edge_point_neighbour
+        print(f"Checking point {i} took about {round(time.time() - t0, 2)} seconds.")
+    return None
+
+
 if __name__ == "__main__":
-    e = get_beacon_edges((0, 0), 2)
-    print("")
     # print(
     #     f"There are {count_possible_distress_signal_positions_at_y_level(file_name='input.txt', y=2_000_000)} "
     #     f"places where the distress signal could be coming from at y=10."
     # )
-
-    sensor_map, beacons, dimensions = read_input_file(file_name="example.txt")
-    the_map = []
-
-    def get_y_value_in_line(point_0: Point, point_1: Point, x: int) -> float:
-        return x * ((point_0[1] - point_1[1]) / (point_0[0] - point_1[0])) + (
-            1 - (point_0[1] - point_1[1]) / (point_0[0] - point_1[0]) * point_0[0]
-        )
-
-    constraints = []
-    for point, distance in sensor_map.items():
-        top = (point[0], point[1] + distance)
-        bottom = (point[0], point[1] - distance)
-        left = (point[0] - distance, point[1])
-        right = (point[0] + distance, point[1])
-
-        constraints.append(
-            (
-                lambda p, left_=left, right_=right: left_[0] <= p[0] <= right_[0],  # if you meet this criteria
-                lambda p, left_=left, right_=right, top_=top, bottom_=bottom: (  # then you must also meet these criteria
-                    p[1] <= max(get_y_value_in_line(left_, bottom_, p[0]), get_y_value_in_line(right_, bottom_, p[0]))
-                    and p[1] >= min(get_y_value_in_line(left_, top_, p[0]), get_y_value_in_line(right_, top_, p[0]))
-                ),
-            )
-        )
-    print("")
-    for x in range(0, 20 + 1):
-        for y in range(0, 20 + 1):
-            if all(
-                [
-                    check_constraint((x, y)) and hard_constraint((x, y))
-                    for check_constraint, hard_constraint in constraints
-                ]
-            ):
-                print((x, y))
-                break
-
-    # print("kicking off")
-    # for point, distance in sensor_map.items():
-    #     the_map = the_map + get_beacon_edges(point, distance)
-    # print("finished determining edges")
-    # the_map_set = set(the_map)
-    # print("converted to set")
-    # for potential_point in the_map:
-    #     if 0 <= potential_point[0] <= 4000000 and 0 <= potential_point[1] <= 4000000 and (potential_point[0], potential_point[1] + 2) in the_map_set and (potential_point[0] + 1, potential_point[1] + 1) in the_map_set and (potential_point[0] - 1, potential_point[1] + 1) in the_map_set:
-    #         within_sight = False
-    #         print(f"answer candidate: {potential_point}")
-    #         for point, distance in sensor_map.items():
-    #             if manhattan_distance(potential_point, point) <= sensor_map[point]:
-    #                 within_sight = True
-    #                 break
-    #         if not within_sight:
-    #             print(f"guaranteed answer: {potential_point}")
-    #             break
-
-    # TODO: let this run for ages
-    # sensor_map, beacons, dimensions = read_input_file(file_name="input.txt")
-    # for x in range(0, 2000000 + 1):
-    #     for y in range(0, 2000000 + 1):
-    #         within_sight = False
-    #         for point in sensor_map.keys():
-    #             if manhattan_distance((x, y), point) <= sensor_map[point]:
-    #                 within_sight = True
-    #                 break
-    #         if not within_sight:
-    #             print(f"Hurrah we did it at {(x*4000000+y)}")
+    # a = find_distress_signal(file_name="example.txt", min_x=0, max_x=20, min_y=0, max_y=20)
+    a = find_distress_signal(file_name="input.txt", min_x=0, max_x=4000000, min_y=0, max_y=4000000)
+    if a is None:
+        print("no solution found :(")
+    else:
+        print(a[0] * 4000000 + a[1])
+        print(a)
