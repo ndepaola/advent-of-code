@@ -48,7 +48,21 @@ def get_point_neighbours_within_map(p: Point, min_x: int, max_x: int, min_y: int
     def is_point_within_map(point_: Point) -> bool:
         return min_x <= point_[0] <= max_x and min_y <= point_[1] <= max_y
 
-    for point in (p, (p[0] - 1, p[1]), (p[0] + 1, p[1]), (p[0], p[1] - 1), (p[0], p[1] + 1), *get_beacon_edges(p, 2)):
+    for point in (
+        p,
+        # (p[0] - 1, p[1]),
+        # (p[0] + 1, p[1]),
+        # (p[0], p[1] - 1),
+        # (p[0], p[1] + 1),
+        #
+        # (p[0] - 1, p[1] - 1),
+        # (p[0] + 1, p[1] + 1),
+        # (p[0] - 1, p[1] + 1),
+        # (p[0] + 1, p[1] - 1),
+        *get_beacon_edges(p, 1),
+        *get_beacon_edges(p, 2),
+        *get_beacon_edges(p, 3),
+    ):
         if is_point_within_map(point):
             yield point
 
@@ -71,6 +85,18 @@ def point_is_within_range_of_a_beacon(p: Point, s: SensorMap) -> bool:
 
 def find_distress_signal(file_name: str, min_x: int, max_x: int, min_y: int, max_y: int) -> Point | None:
     sensor_map, beacons, dimensions = read_input_file(file_name=file_name)
+    print("checking top and bottom edges of map")
+    for x in range(min_x, max_x + 1):
+        for y in [min_y, max_y]:
+            if not point_is_within_range_of_a_beacon((x, y), sensor_map):
+                return x, y
+    print("checking left and right edges of map")
+    for y in range(min_y, max_y + 1):
+        for x in [min_x, max_x]:
+            if not point_is_within_range_of_a_beacon((x, y), sensor_map):
+                return x, y
+
+    print("checking the edges of each sensor's range")
     for i, point in enumerate(sensor_map.keys()):
         t0 = time.time()
         edge_points = get_beacon_edges(point, sensor_map[point])
@@ -80,7 +106,8 @@ def find_distress_signal(file_name: str, min_x: int, max_x: int, min_y: int, max
             ):
                 if not point_is_within_range_of_a_beacon(edge_point_neighbour, sensor_map):
                     return edge_point_neighbour
-        print(f"Checking point {i} took about {round(time.time() - t0, 2)} seconds.")
+        print(f"* checking point {i} took about {round(time.time() - t0, 2)} seconds.")
+    print("unable to find distress signal :(")
     return None
 
 
@@ -91,8 +118,6 @@ if __name__ == "__main__":
     # )
     # a = find_distress_signal(file_name="example.txt", min_x=0, max_x=20, min_y=0, max_y=20)
     a = find_distress_signal(file_name="input.txt", min_x=0, max_x=4000000, min_y=0, max_y=4000000)
-    if a is None:
-        print("no solution found :(")
-    else:
+    if a is not None:
         print(a[0] * 4000000 + a[1])
         print(a)
