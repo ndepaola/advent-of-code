@@ -86,14 +86,17 @@ class State:
                 )
         return possible_states
 
-    def get_best_total_steam_released(self, flows: FlowRates) -> int:
-        # how much steam could theoretically be released in total from here? naive estimate, assumes you can teleport
-        latest_agent_time = min([x.time for x in self.agents]) - 1
+    def estimate_best_answer(self, moves: SolvedMovements, flows: FlowRates) -> int:
+        # how much steam could theoretically be released in total from here?
+        # this naive estimate assumes the agent with the most time travels to each valve and opens it without losing
+        # time - e.g. if the elephant has 20 minutes and there are 4 unopened valves, this will count the total pressure
+        # you would achieve by the elephant moving to each valve from t=20 and opening it
+        agent_with_earliest_time = max(self.agents, key=lambda x: x.time)
         return sum([flows[valve] * time_step for valve, time_step in self.opened_valves.items()]) + sum(
             [
-                flow_rate * latest_agent_time
-                for valve, flow_rate in flows.items()
-                if valve not in set(self.opened_valves.keys())
+                flows[valve] * (agent_with_earliest_time.time - moves[agent_with_earliest_time.valve][valve] + 1)
+                for valve in flows.keys()
+                if valve not in self.opened_valves.keys()
             ]
         )
 
@@ -130,7 +133,7 @@ def maximise_pressure_reduction(
                 state_with_max_steam = possible_state
             if (  # if you can still open more valves here and this state has the potential for more steam than curr max
                 len(possible_state.opened_valves.keys()) < num_valves_with_flows_greater_than_zero
-                and possible_state.get_best_total_steam_released(flows) > state_with_max_steam.total_steam_released
+                and possible_state.estimate_best_answer(moves, flows) > state_with_max_steam.total_steam_released
             ):
                 frontier.append(possible_state)
     return state_with_max_steam.total_steam_released
