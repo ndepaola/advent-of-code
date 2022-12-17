@@ -2,7 +2,7 @@ import dataclasses
 import re
 import time
 from collections import defaultdict
-from itertools import permutations
+from itertools import combinations, permutations
 from typing import TypeAlias
 
 Movements: TypeAlias = dict[str, set[str]]  # node => which nodes can you move to from here?
@@ -64,7 +64,13 @@ class State:
         if not (agents_with_some_time_left := [x for x in self.agents if x.time > 0]):
             return []
 
-        for valves_per_agent in permutations(possible_destination_valves, len(agents_with_some_time_left)):
+        # if all agents at same time and place, we can use combinations rather than permutations to reduce nodes
+        perm_getter = (
+            combinations
+            if len({x.time for x in self.agents}) == 1 and len({x.valve for x in self.agents}) == 1
+            else permutations
+        )
+        for valves_per_agent in perm_getter(possible_destination_valves, len(agents_with_some_time_left)):
             agents_and_valve_open_times = []
             for target_valve, agent in zip(valves_per_agent, agents_with_some_time_left):
                 # -1 here because it takes one time step to open a valve once you arrive there
@@ -79,6 +85,17 @@ class State:
                     ),
                 )
         return possible_states
+
+    def get_best_total_steam_released(self, flows: FlowRates) -> int:
+        # how much steam could theoretically be released in total from here? naive estimate, assumes you can teleport
+        latest_agent_time = min([x.time for x in self.agents]) - 1
+        return sum([flows[valve] * time_step for valve, time_step in self.opened_valves.items()]) + sum(
+            [
+                flow_rate * latest_agent_time
+                for valve, flow_rate in flows.items()
+                if valve not in set(self.opened_valves.keys())
+            ]
+        )
 
 
 def read_input_file(file_name: str = "input.txt") -> tuple[Movements, FlowRates]:
@@ -111,8 +128,11 @@ def maximise_pressure_reduction(
         for possible_state in state.get_possible_states(moves, flows):
             if possible_state.total_steam_released > state_with_max_steam.total_steam_released:
                 state_with_max_steam = possible_state
-            if len(possible_state.opened_valves.keys()) < num_valves_with_flows_greater_than_zero:
-                frontier.append(possible_state)  # you can still open more valves here
+            if (  # if you can still open more valves here and this state has the potential for more steam than curr max
+                len(possible_state.opened_valves.keys()) < num_valves_with_flows_greater_than_zero
+                and possible_state.get_best_total_steam_released(flows) > state_with_max_steam.total_steam_released
+            ):
+                frontier.append(possible_state)
     return state_with_max_steam.total_steam_released
 
 
