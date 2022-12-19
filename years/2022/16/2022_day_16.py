@@ -8,6 +8,7 @@ from typing import TypeAlias
 Movements: TypeAlias = dict[str, set[str]]  # node => which nodes can you move to from here?
 SolvedMovements: TypeAlias = dict[str, dict[str, int]]  # source => {destination node => moves to get to this node}
 FlowRates: TypeAlias = dict[str, int]  # node => flow rate
+Agent: TypeAlias = tuple[str, int]  # which valve the agent is standing at and how much time they have left
 
 
 def get_total_steam_released(opened_valves: dict[str, int], flows: FlowRates) -> int:
@@ -45,41 +46,35 @@ def dijkstra(moves: Movements) -> SolvedMovements:
 
 
 @dataclasses.dataclass(frozen=True)
-class Agent:  # you and the elephant are both agents
-    valve: str  # where is this agent currently standing?
-    time: int  # when is the agent standing there? 30 for start of time, 0 for end
-
-
-@dataclasses.dataclass(frozen=True)
 class State:
     agents: list[Agent]
     opened_valves: dict[str, int]  # node => which time step it was opened in
-    total_steam_released: int = 0
+    total_steam_released: int = 0  # avoid recalculating every time this is referenced
 
     def get_possible_states(self, moves: SolvedMovements, flows: FlowRates) -> list["State"]:
         valves_with_flows_greater_than_zero = {valve for valve, flow_rate in flows.items() if flow_rate > 0}
         possible_destination_valves = valves_with_flows_greater_than_zero - set(self.opened_valves.keys())
         possible_states = []
 
-        if not (agents_with_some_time_left := [x for x in self.agents if x.time > 0]):
+        if not (agents_with_some_time_left := [x for x in self.agents if x[1] > 0]):
             return []
 
         # if all agents at same time and place, we can use combinations rather than permutations to reduce nodes
         perm_getter = (
             combinations
-            if len({x.time for x in self.agents}) == 1 and len({x.valve for x in self.agents}) == 1
+            if len({x[1] for x in self.agents}) == 1 and len({x[0] for x in self.agents}) == 1
             else permutations
         )
         for valves_per_agent in perm_getter(possible_destination_valves, len(agents_with_some_time_left)):
             agents_and_valve_open_times = []
             for target_valve, agent in zip(valves_per_agent, agents_with_some_time_left):
                 # -1 here because it takes one time step to open a valve once you arrive there
-                agents_and_valve_open_times.append((target_valve, agent.time - moves[agent.valve][target_valve] - 1))
+                agents_and_valve_open_times.append((target_valve, agent[1] - moves[agent[0]][target_valve] - 1))
             if min([x[1] for x in agents_and_valve_open_times]) >= 0:  # ensure this move would not cause illegal state
                 possible_state_valves = self.opened_valves | {v: t for v, t in agents_and_valve_open_times}
                 possible_states.append(
                     State(
-                        agents=[Agent(valve=v, time=t) for v, t in agents_and_valve_open_times],
+                        agents=agents_and_valve_open_times,
                         opened_valves=possible_state_valves,
                         total_steam_released=get_total_steam_released(possible_state_valves, flows),
                     ),
@@ -91,12 +86,12 @@ class State:
         # this naive estimate assumes the agent with the most time travels to each valve and opens it without losing
         # time - e.g. if the elephant has 20 minutes and there are 4 unopened valves, this will count the total pressure
         # you would achieve by the elephant moving to each valve from t=20 and opening it
-        agent_with_earliest_time = max(self.agents, key=lambda x: x.time)
-        return sum([flows[valve] * time_step for valve, time_step in self.opened_valves.items()]) + sum(
+        agent_with_most_time = max(self.agents, key=lambda x: x[1])
+        return sum(
             [
-                flows[valve] * (agent_with_earliest_time.time - moves[agent_with_earliest_time.valve][valve] + 1)
-                for valve in flows.keys()
-                if valve not in self.opened_valves.keys()
+                flow_rate  # multiply by the time it was opened if it's opened, or estimate the earliest time to open it
+                * self.opened_valves.get(valve, agent_with_most_time[1] - moves[agent_with_most_time[0]][valve] + 1)
+                for valve, flow_rate in flows.items()
             ]
         )
 
@@ -119,7 +114,7 @@ def maximise_pressure_reduction(
     moves: SolvedMovements, flows: FlowRates, max_time_steps: int = 30, num_agents: int = 1
 ) -> int:
     num_valves_with_flows_greater_than_zero = len([valve for valve, flow_rate in flows.items() if flow_rate > 0])
-    starting_state = State(agents=[Agent(valve="AA", time=max_time_steps) for _ in range(num_agents)], opened_valves={})
+    starting_state = State(agents=[("AA", max_time_steps) for _ in range(num_agents)], opened_valves={})
     frontier: list[State] = []
     for possible_state in starting_state.get_possible_states(moves=moves, flows=flows):
         frontier.append(possible_state)
@@ -149,7 +144,7 @@ if __name__ == "__main__":
         f"Computing this took roughly {int(time.time() - t0)} second/s."
     )
     t1 = time.time()
-    print(  # this is mad slow but whatever
+    print(
         f"The maximum amount of steam which can be released by you and your elephant friend in 26 minutes is "
         f"{maximise_pressure_reduction(solved_movements, flow_rates, max_time_steps=26, num_agents=2)} pressure. "
         f"Computing this took roughly {int(time.time() - t1)} second/s."
