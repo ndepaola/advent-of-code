@@ -1,9 +1,10 @@
 import re
-from typing import TypeAlias
+from typing import Callable, TypeAlias
 
 Point: TypeAlias = tuple[int, int]  # x, y
 Map: TypeAlias = dict[Point, bool]  # point => is this point traversable (i.e. not a wall)?
 Commands: TypeAlias = list[str | int]  # str for direction to turn in, int for number of tiles to move
+EdgeAdjacencies: TypeAlias = dict[Point, Point]
 
 DIRECTIONS: list[Point] = [(1, 0), (0, 1), (-1, 0), (0, -1)]  # east, south, west, north. top-left is (0, 0).
 
@@ -27,11 +28,29 @@ def read_input_file(file_name: str = "input.txt") -> tuple[Map, Commands]:
                     map_[(x, y)] = character.strip() == "."
                 elif character != " ":
                     raise Exception
-
         return map_, commands
 
 
-def traverse(map_: Map, commands: Commands) -> None:
+def compute_edge_adjacencies(map_: Map) -> EdgeAdjacencies:
+    ...
+
+
+def wrap_around_flat_map(map_: Map, position: Point, direction: int) -> tuple[Point, int]:
+    temporary_direction = (direction + 2) % len(DIRECTIONS)  # about face
+    temporary_position = position
+    while True:
+        new_temporary_position = move_in_direction(temporary_position, temporary_direction)
+        if map_.get(new_temporary_position, None) is None:
+            break
+        temporary_position = new_temporary_position
+    if map_.get(temporary_position, False) is True:
+        return temporary_position, direction
+    return position, direction  # the wrapped-around position is not traversable
+
+
+def traverse(
+    map_: Map, commands: Commands, wrap_around_callable: Callable[[Map, Point, int], tuple[Point, int]]
+) -> int:
     position = min([x for x in map_.keys() if x[1] == 0])  # leftmost tile in top row
     direction = 0  # east
     for command in commands:
@@ -42,25 +61,16 @@ def traverse(map_: Map, commands: Commands) -> None:
             # move
             for _ in range(command):
                 new_position = move_in_direction(position, direction)
-                new_position_in_map = map_.get(new_position, None)
-                if new_position_in_map is True:
-                    position = new_position
-                elif new_position_in_map is None:
-                    # wrap around map
-                    temporary_direction = (direction + 2) % len(DIRECTIONS)  # about face
-                    temporary_position = position
-                    while True:
-                        new_temporary_position = move_in_direction(temporary_position, temporary_direction)
-                        if map_.get(new_temporary_position, None) is None:
-                            break
-                        temporary_position = new_temporary_position
-                    if map_.get(temporary_position, False) is True:
-                        position = temporary_position
-                else:  # new_position_in_map is False
-                    break
-    print(1000 * (position[1] + 1) + 4 * (position[0] + 1) + direction)
+                match map_.get(new_position, None):
+                    case True:  # new position is within map and is traversable
+                        position = new_position
+                    case False:  # new position is within map and is not traversable
+                        break
+                    case None:  # new position is outside map
+                        position, direction = wrap_around_callable(map_, position, direction)
+    return 1000 * (position[1] + 1) + 4 * (position[0] + 1) + direction
 
 
 if __name__ == "__main__":
     m, c = read_input_file("input.txt")
-    traverse(m, c)
+    print(f"The final password when the map is flat is {traverse(m, c, wrap_around_flat_map)}.")
