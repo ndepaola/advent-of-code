@@ -11,12 +11,10 @@ def read_input_file(file_name: str = "input.txt") -> Instructions:
         cycle: int = 0
         for line in f.readlines():
             split_line = line.strip().split(" ")
-            match split_line[0]:
-                case "noop":
-                    cycle += 1
-                case "addx":
-                    instructions[cycle + 3] += int(split_line[1])
-                    cycle += 2
+            if split_line[0] == "addx":
+                instructions[cycle + 3] += int(split_line[1])
+                cycle += 1
+            cycle += 1
         return instructions
 
 
@@ -25,10 +23,8 @@ def calculate_x_register_value(instructions: Instructions, cycle: int) -> int:
 
 
 def calculate_total_signal_strength(instructions: Instructions, cycle_step: int = 40, starting_cycle: int = 20) -> int:
-    total_strength = 0
-    for cycle in range(starting_cycle, max(instructions.keys()), cycle_step):
-        total_strength += calculate_x_register_value(instructions, cycle) * cycle
-    return total_strength
+    max_cycle = max(instructions.keys())
+    return sum([calculate_x_register_value(instructions, c) * c for c in range(starting_cycle, max_cycle, cycle_step)])
 
 
 def render_crt_output(instructions: Instructions, width: int = 40, height: int = 6, sprite_width: int = 3) -> str:

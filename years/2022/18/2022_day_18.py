@@ -43,20 +43,23 @@ def compute_exterior_surface_area(points: set[Point]) -> int:
         (min_x, max_y, max_z),
     ]
     while q:
-        p_ = q.pop()
-        if not (min_x <= p_[0] <= max_x and min_y <= p_[1] <= max_y and min_z <= p_[2] <= max_z) or p_ in points:
+        point = q.pop()
+        if (
+            not (min_x <= point[0] <= max_x and min_y <= point[1] <= max_y and min_z <= point[2] <= max_z)
+            or point in points
+        ):
             continue
-        outside_points.add(p_)
-        for p__ in [
-            (p_[0] + 1, p_[1], p_[2]),
-            (p_[0] - 1, p_[1], p_[2]),
-            (p_[0], p_[1] + 1, p_[2]),
-            (p_[0], p_[1] - 1, p_[2]),
-            (p_[0], p_[1], p_[2] + 1),
-            (p_[0], p_[1], p_[2] - 1),
+        outside_points.add(point)
+        for neighbour in [
+            (point[0] + 1, point[1], point[2]),
+            (point[0] - 1, point[1], point[2]),
+            (point[0], point[1] + 1, point[2]),
+            (point[0], point[1] - 1, point[2]),
+            (point[0], point[1], point[2] + 1),
+            (point[0], point[1], point[2] - 1),
         ]:
-            if p__ not in outside_points:
-                q.append(p__)
+            if neighbour not in outside_points:
+                q.append(neighbour)
 
     return compute_total_surface_area(  # all points in the prism - outside points => all points in the sphere
         {

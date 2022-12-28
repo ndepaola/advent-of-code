@@ -1,5 +1,7 @@
 import dataclasses
-from typing import Self
+from typing import TypeAlias
+
+Compartment: TypeAlias = str
 
 
 def get_value_for_character(character: str) -> int:
@@ -7,11 +9,6 @@ def get_value_for_character(character: str) -> int:
     if character.isupper():
         return ord(character) - 64 + 26
     return ord(character) - 96
-
-
-@dataclasses.dataclass
-class Compartment:
-    contents: str
 
 
 @dataclasses.dataclass
@@ -24,16 +21,13 @@ class Rucksack:
         stripped_line = line.strip()
         assert len(stripped_line) % 2 == 0, "Line must be even length"
         half_length = int(len(stripped_line) / 2)
-        return cls(
-            first_compartment=Compartment(contents=stripped_line[0:half_length]),
-            second_compartment=Compartment(contents=stripped_line[half_length:]),
-        )
+        return cls(first_compartment=stripped_line[0:half_length], second_compartment=stripped_line[half_length:])
 
     def get_unique_items(self) -> set[str]:
-        return set(self.first_compartment.contents) | set(self.second_compartment.contents)
+        return set(self.first_compartment) | set(self.second_compartment)
 
     def get_overlapping_items(self) -> set[str]:
-        return set(self.first_compartment.contents) & set(self.second_compartment.contents)
+        return set(self.first_compartment) & set(self.second_compartment)
 
     def get_overlapping_item(self) -> str:
         overlapping_items = self.get_overlapping_items()
