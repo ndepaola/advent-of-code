@@ -1,5 +1,6 @@
 import re
 import time
+from itertools import chain
 from typing import Iterable, TypeAlias
 
 Point: TypeAlias = tuple[int, int]  # x, y, distance to closest beacon
@@ -33,46 +34,20 @@ def read_input_file(file_name: str = "input.txt") -> tuple[SensorMap, set[Point]
 
 
 def count_possible_distress_signal_positions_at_y_level(file_name: str = "input.txt", y: int = 2_000_000) -> int:
+    # TODO: this is extremely slow
     sensor_map, beacons, dimensions = read_input_file(file_name=file_name)
     all_points_where_beacons_could_go: set[Point] = set()
-    for i, point in enumerate(sensor_map.keys()):
-        t0 = time.time()
-        for x in range(dimensions[0][0], dimensions[0][1] + 1):  # attempt to speed up with short circuit eval
+    for point in sensor_map.keys():
+        for x in range(dimensions[0][0], dimensions[0][1] + 1):  # attempt to speed up the below with short circuit eval
             if abs(y - point[1]) <= sensor_map[point] and manhattan_distance((x, y), point) <= sensor_map[point]:
                 all_points_where_beacons_could_go.add((x, y))
-        print(f"Checking point {i} took about {round(time.time() - t0, 2)} seconds.")
     return len((all_points_where_beacons_could_go - beacons) - set(sensor_map.keys()))
 
 
-def get_point_neighbours_within_map(p: Point, min_x: int, max_x: int, min_y: int, max_y: int) -> Iterable[Point]:
-    def is_point_within_map(point_: Point) -> bool:
-        return min_x <= point_[0] <= max_x and min_y <= point_[1] <= max_y
-
-    for point in (
-        p,
-        # (p[0] - 1, p[1]),
-        # (p[0] + 1, p[1]),
-        # (p[0], p[1] - 1),
-        # (p[0], p[1] + 1),
-        #
-        # (p[0] - 1, p[1] - 1),
-        # (p[0] + 1, p[1] + 1),
-        # (p[0] - 1, p[1] + 1),
-        # (p[0] + 1, p[1] - 1),
-        *get_beacon_edges(p, 1),
-        *get_beacon_edges(p, 2),
-        *get_beacon_edges(p, 3),
-    ):
-        if is_point_within_map(point):
-            yield point
-
-
-def get_beacon_edges(p: Point, d: int) -> list[Point]:
-    return list(
-        zip(
-            list(range(p[0] - d, p[0] + d)) + list(range(p[0] + d, p[0] - d, -1)),
-            list(range(p[0], p[0] + d)) + list(range(p[0] + d, p[0] - d, -1)) + list(range(p[0] - d, p[0])),
-        )
+def get_beacon_edges(p: Point, d: int) -> Iterable[Point]:
+    return zip(
+        chain(range(p[0] - d, p[0] + d), range(p[0] + d, p[0] - d, -1)),
+        chain(range(p[1], p[1] + d), range(p[1] + d, p[1] - d, -1), range(p[1] - d, p[1])),
     )
 
 
@@ -84,40 +59,30 @@ def point_is_within_range_of_a_beacon(p: Point, s: SensorMap) -> bool:
 
 
 def find_distress_signal(file_name: str, min_x: int, max_x: int, min_y: int, max_y: int) -> Point | None:
-    sensor_map, beacons, dimensions = read_input_file(file_name=file_name)
-    print("checking top and bottom edges of map")
-    for x in range(min_x, max_x + 1):
-        for y in [min_y, max_y]:
-            if not point_is_within_range_of_a_beacon((x, y), sensor_map):
-                return x, y
-    print("checking left and right edges of map")
-    for y in range(min_y, max_y + 1):
-        for x in [min_x, max_x]:
-            if not point_is_within_range_of_a_beacon((x, y), sensor_map):
-                return x, y
+    def is_point_within_map(point_: Point) -> bool:
+        return min_x <= point_[0] <= max_x and min_y <= point_[1] <= max_y
 
-    print("checking the edges of each sensor's range")
+    sensor_map, beacons, dimensions = read_input_file(file_name=file_name)
     for i, point in enumerate(sensor_map.keys()):
-        t0 = time.time()
-        edge_points = get_beacon_edges(point, sensor_map[point])
+        edge_points = get_beacon_edges(point, sensor_map[point] + 1)
         for edge_point in edge_points:
-            for edge_point_neighbour in get_point_neighbours_within_map(
-                edge_point, min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y
-            ):
-                if not point_is_within_range_of_a_beacon(edge_point_neighbour, sensor_map):
-                    return edge_point_neighbour
-        print(f"* checking point {i} took about {round(time.time() - t0, 2)} seconds.")
-    print("unable to find distress signal :(")
+            if is_point_within_map(edge_point) and not point_is_within_range_of_a_beacon(edge_point, sensor_map):
+                return edge_point
     return None
 
 
 if __name__ == "__main__":
-    # print(
-    #     f"There are {count_possible_distress_signal_positions_at_y_level(file_name='input.txt', y=2_000_000)} "
-    #     f"places where the distress signal could be coming from at y=10."
-    # )
-    # a = find_distress_signal(file_name="example.txt", min_x=0, max_x=20, min_y=0, max_y=20)
-    a = find_distress_signal(file_name="input.txt", min_x=0, max_x=4000000, min_y=0, max_y=4000000)
-    if a is not None:
-        print(a[0] * 4000000 + a[1])
-        print(a)
+    t0 = time.time()
+    print(
+        f"There are {count_possible_distress_signal_positions_at_y_level(file_name='input.txt', y=2_000_000)} "
+        f"places where the distress signal could be coming from at y=2,000,000. "
+        f"Computing this took {round(time.time() - t0, 2)} seconds."
+    )
+    t1 = time.time()
+    s = find_distress_signal(file_name="input.txt", min_x=0, max_x=4000000, min_y=0, max_y=4000000)
+    if s is not None:
+        freq = s[0] * 4000000 + s[1]
+        print(f"The location of the distress signal is {s} and its tuning frequency is {freq}. ", end="")
+    else:
+        print("The distress signal could not be found. ", end="")
+    print(f"Computing this took {round(time.time() - t1, 2)} seconds.")
