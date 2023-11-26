@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pycqa/isort
-    rev: 5.9.0
+    rev: 5.12.0
     hooks:
       - id: isort
         name: isort (python)
@@ -46,3 +46,15 @@ repos:
       - id: djlint-django
         args:
           - --reformat
+  - repo: https://github.com/syntaqx/git-hooks
+    rev: v0.0.18
+    hooks:
+      - id: go-fmt
+      - id: go-test
+      - id: go-mod-tidy
+      - id: go-generate
+  - repo: https://github.com/sco1/pre-commit-matlab
+    rev: v1.2.0
+    hooks:
+      - id: matlab-reflow-comments
+        args: [--line-length=100]
