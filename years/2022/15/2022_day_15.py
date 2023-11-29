@@ -34,14 +34,21 @@ def read_input_file(file_name: str = "input.txt") -> tuple[SensorMap, set[Point]
 
 
 def count_possible_distress_signal_positions_at_y_level(file_name: str = "input.txt", y: int = 2_000_000) -> int:
-    # TODO: this is extremely slow
     sensor_map, beacons, dimensions = read_input_file(file_name=file_name)
-    all_points_where_beacons_could_go: set[Point] = set()
-    for point in sensor_map.keys():
-        for x in range(dimensions[0][0], dimensions[0][1] + 1):  # attempt to speed up the below with short circuit eval
-            if abs(y - point[1]) <= sensor_map[point] and manhattan_distance((x, y), point) <= sensor_map[point]:
-                all_points_where_beacons_could_go.add((x, y))
-    return len((all_points_where_beacons_could_go - beacons) - set(sensor_map.keys()))
+    sensors = set(sensor_map.keys())
+    all_points_where_beacons_could_go: set[Point] = {
+        man
+        for sensor, sensor_dist in sensor_map.items()
+        for man in [
+            (x_, y)
+            for x_ in range(
+                max(sensor[0] - (sensor_map[sensor] - abs(y - sensor[1])), dimensions[0][0]),
+                min(sensor[0] + (sensor_map[sensor] - abs(y - sensor[1])) + 1, dimensions[0][1])
+            )
+            if (x_, y) not in beacons and (x_, y) not in sensors
+        ]
+    }
+    return len(all_points_where_beacons_could_go)
 
 
 def get_beacon_edges(p: Point, d: int) -> Iterable[Point]:
