@@ -46,13 +46,14 @@ repos:
       - id: djlint-django
         args:
           - --reformat
-  - repo: https://github.com/syntaqx/git-hooks
-    rev: v0.0.18
-    hooks:
-      - id: go-fmt
-      - id: go-test
-      - id: go-mod-tidy
-      - id: go-generate
+  # TODO: these are is broken on WSL :(
+  #  - repo: https://github.com/syntaqx/git-hooks
+  #    rev: v0.0.18
+  #    hooks:
+  #      - id: go-fmt
+  #      - id: go-test
+  #      - id: go-mod-tidy
+  #      - id: go-generate
   - repo: https://github.com/sco1/pre-commit-matlab
     rev: v1.2.0
     hooks:
