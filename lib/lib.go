@@ -37,7 +37,7 @@ func ReadFile(fileName string) string {
 type convert[T any] func(data string) T
 
 func ReadFileAsSliceOfType[T any](fileName string, fn convert[T]) []T {
-	split := strings.Split(ReadFile(fileName), "\n")
+	split := strings.Split(ReadFile(fileName), "\r\n")
 	converted := make([]T, len(split))
 	for i := 0; i < len(split); i++ {
 		converted[i] = fn(split[i])

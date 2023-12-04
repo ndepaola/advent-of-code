@@ -69,11 +69,11 @@ func calculateGamePower(game Game) int {
 
 func puzzle(fileName string) (int, int) {
 	bag := GameCubes{"red": 12, "green": 13, "blue": 14}
-	data := strings.Split(lib.ReadFile(fileName), "\n")
+	games := lib.ReadFileAsSliceOfType(fileName, lineToGame)
 	idTotal := 0
 	powerTotal := 0
-	for i := 0; i < len(data); i++ {
-		game := lineToGame(data[i])
+	for i := 0; i < len(games); i++ {
+		game := games[i]
 		if isGamePossible(game, bag) {
 			idTotal += game.id
 		}
