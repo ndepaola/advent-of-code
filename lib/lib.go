@@ -60,3 +60,16 @@ func ConvertToInt(data string) int {
 	}
 	return parsed
 }
+
+func ConvertToIntSlice(data string) []int {
+	split := strings.Split(data, " ")
+	man := make([]int, len(split))
+	for i := 0; i < len(man); i++ {
+		parsed, err := strconv.Atoi(split[i])
+		if err != nil {
+			panic(err)
+		}
+		man[i] = parsed
+	}
+	return man
+}
