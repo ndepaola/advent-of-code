@@ -45,6 +45,10 @@ func ReadFileAsSliceOfType[T any](fileName string, fn convert[T]) []T {
 	return converted
 }
 
+func ConvertToString(data string) string {
+	return strings.TrimSpace(data)
+}
+
 func ConvertToFloat64(data string) float64 {
 	parsed, err := strconv.ParseFloat(data, 64)
 	if err != nil {
