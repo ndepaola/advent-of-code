@@ -77,3 +77,29 @@ func ConvertToIntSlice(data string) []int {
 	}
 	return man
 }
+
+type Point struct {
+	X int
+	Y int
+}
+
+func (p Point) Add(other Point) Point {
+	return Point{X: p.X + other.X, Y: p.Y + other.Y}
+}
+
+type Set[T string | int | rune | Point] map[T]struct{}
+
+var Void = struct{}{} // consumes 0 memory
+
+func (s Set[T]) Add(item T) {
+	s[item] = Void
+}
+
+func (s Set[T]) Remove(item T) {
+	delete(s, item)
+}
+
+func (s Set[T]) Has(item T) bool {
+	_, ok := s[item]
+	return ok
+}
